@@ -43,7 +43,7 @@ export default function AirportMap() {
     setConnections([])
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/routes/${iata}`)
+      const res = await fetch(`${API_BASE}/routes/${iata}?limit=9999`)
       if (!res.ok) throw new Error('Failed to load routes')
       const data = await res.json()
       setSelected(data.airport)
@@ -57,6 +57,12 @@ export default function AirportMap() {
   }
 
   const center = selected ? [selected.lat, selected.lng] : [20, 0]
+
+  const visibleAirports = useMemo(() => {
+    if (!selected) return airports
+    const connSet = new Set(connections.map(c => c.iata))
+    return airports.filter(a => a.iata === selected.iata || connSet.has(a.iata))
+  }, [airports, selected, connections])
 
   return (
     <div className="w-full">
@@ -81,7 +87,7 @@ export default function AirportMap() {
           />
 
           {/* Airports */}
-          {airports.map(a => (
+          {visibleAirports.map(a => (
             <CircleMarker key={a.iata} center={[a.lat, a.lng]} pathOptions={{ color: selected && a.iata === selected.iata ? '#60a5fa' : '#f8fafc' }} radius={selected && a.iata === selected.iata ? 7 : 5} eventHandlers={{ click: () => onSelect(a.iata) }}>
               <Tooltip direction="top" offset={[0, -6]} opacity={1} permanent={false}>
                 <div className="text-xs">{a.iata} · {a.city}</div>
@@ -96,7 +102,7 @@ export default function AirportMap() {
 
           {/* Clickable destination hotspots */}
           {selected && connections.map(dest => (
-            <CircleMarker key={`dest-${dest.iata}`} center={[dest.lat, dest.lng]} radius={10} pathOptions={{ color: 'transparent' }} eventHandlers={{ click: (e) => { e.originalEvent?.stopPropagation?.(); navigate(`/destination/${dest.iata}`) } }} />
+            <CircleMarker key={`dest-${dest.iata}`} center={[dest.lat, dest.lng]} radius={10} pathOptions={{ color: 'transparent' }} eventHandlers={{ click: (e) => { e.originalEvent?.stopPropagation?.(); navigate(`/destination/${dest.iata}?from=${selected.iata}`) } }} />
           ))}
         </MapContainer>
 

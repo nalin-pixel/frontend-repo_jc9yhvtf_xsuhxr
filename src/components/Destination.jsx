@@ -1,15 +1,19 @@
-import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, Link, useLocation } from 'react-router-dom'
 
 const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
 export default function Destination() {
   const { iata } = useParams()
+  const location = useLocation()
   const [summary, setSummary] = useState(null)
   const [reviews, setReviews] = useState([])
   const [form, setForm] = useState({ name: '', rating: 5, comment: '' })
   const [loading, setLoading] = useState(true)
   const [posting, setPosting] = useState(false)
+
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const from = params.get('from') || ''
 
   useEffect(() => {
     const load = async () => {
@@ -59,6 +63,19 @@ export default function Destination() {
 
   const { airport, links } = summary
 
+  // Preserve selected origin when opening external flight search if provided
+  const flightUrl = useMemo(() => {
+    if (!from) return links.flights
+    try {
+      const u = new URL(links.flights)
+      // Google Flights format often uses hl/en and params; safest is to set a generic URL with origin and destination
+      // Fallback: construct parameters ?q=flights from-to
+      return `https://www.google.com/travel/flights?q=Flights%20from%20${encodeURIComponent(from)}%20to%20${encodeURIComponent(airport.iata)}`
+    } catch {
+      return links.flights
+    }
+  }, [links.flights, from, airport.iata])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
       <div className="max-w-5xl mx-auto px-6 py-10">
@@ -69,9 +86,9 @@ export default function Destination() {
             <h1 className="text-3xl font-bold mb-1">{airport.city} ({airport.iata})</h1>
             <p className="text-blue-200/80 mb-4">{airport.name}, {airport.country}</p>
             <div className="flex flex-wrap gap-3">
-              <a className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500" href={links.flights} target="_blank">Search flights</a>
-              <a className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500" href={links.hotels} target="_blank">Find accommodation</a>
-              <a className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600" href={links.wikipedia} target="_blank">Wikipedia</a>
+              <a className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500" href={flightUrl} target="_blank" rel="noreferrer">Search flights</a>
+              <a className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500" href={links.hotels} target="_blank" rel="noreferrer">Find accommodation</a>
+              <a className="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600" href={links.wikipedia} target="_blank" rel="noreferrer">Wikipedia</a>
             </div>
 
             <div className="mt-8">
